@@ -8,6 +8,8 @@ import java.net.URL;
 import java.util.ResourceBundle;
 import it.polito.tdp.poweroutages.model.Model;
 import it.polito.tdp.poweroutages.model.Nerc;
+import it.polito.tdp.poweroutages.model.PowerOutage;
+import it.polito.tdp.poweroutages.model.WorstCaseAnalysis;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
@@ -39,7 +41,50 @@ public class FXMLController {
     @FXML
     void doRun(ActionEvent event) {
     	txtResult.clear();
+    	try {
+			Nerc selectedNerc = cmbNerc.getSelectionModel().getSelectedItem();
+			if (selectedNerc == null) {
+				txtResult.setText("Select a NERC (area identifier)");
+				return;
+			}
+
+			int maxAnni = Integer.parseInt(txtYears.getText());
+			if (maxAnni <= 0) {
+				txtResult.setText("Select a number of years greater than 0");
+				return;
+			}
+
+			int maxOre = Integer.parseInt(txtHours.getText());
+			if (maxOre <= 0) {
+				txtResult.setText("Select a number of hours greater than 0");
+				return;
+			}
+
+			txtResult.setText(
+					String.format("Computing the worst case analysis... for %d hours and %d years", maxOre, maxAnni));
+			WorstCaseAnalysis worstCase = model.getWorstCasev2(selectedNerc, maxAnni, maxOre );
+
+			txtResult.clear();
+			
+			if (worstCase==null) {
+				txtResult.setText("Non ci sono disservizi nel Nerc selezionato.");
+			}else {
+				txtResult.appendText("Tot people affected: " + worstCase.getCustomersAffected() + "\n");
+				txtResult.appendText(String.format("Tot hours of outage: %4.2f\n", worstCase.getOreDisservizio()));
+				for (PowerOutage e : worstCase.getEventi()) {
+					txtResult.appendText(String.format("Id: %5d\t Anno: %d\t Data Inizio: %s\t"
+							+ "Data Fine: %s\t Durata (ore): %3.2f\t Customers: %d\n", 
+							e.getId(), e.getYearStart(), e.getStart_time(), e.getEnd_time(), e.getDurationMinutes()/60.0, e.getCustomersAffected()) );
+				}
+			}
+		} catch (NumberFormatException e) {
+			txtResult.setText("Insert a valid number of years and of hours");
+		}
     }
+    
+    
+    
+    
 
     @FXML // This method is called by the FXMLLoader when initialization is complete
     void initialize() {
@@ -54,5 +99,7 @@ public class FXMLController {
     
     public void setModel(Model model) {
     	this.model = model;
+    	
+    	this.cmbNerc.getItems().addAll(this.model.getNercList());
     }
 }
